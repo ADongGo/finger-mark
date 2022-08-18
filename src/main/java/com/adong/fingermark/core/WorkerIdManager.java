@@ -21,26 +21,41 @@ public class WorkerIdManager {
 
     private final RedisTemplate redisTemplate;
 
+    /** 区分业务 **/
     private final String appKey;
 
+    /** workerId 阈值 **/
+    private final long maxWorkerId;
+
+    /** 是否开启顺序策略 **/
     private final boolean openSequenceSetWorkerId;
 
+    /** 续期任务线程池 **/
     private final ScheduledExecutorService service;
 
-    private static final Integer THREE_MIN = 60 * 3;
+    /** 续期时间, 单位s **/
+    private final long renewalTime;
 
-    private static final Integer ONE_MIN = 60;
+    /** 续期任务间隔, 单位s **/
+    private final long renewalIntervalTime;
 
     private final Thread shutdownHook;
 
+    /** 机器号 **/
     private volatile Long workerId;
 
     public WorkerIdManager(RedisTemplate redisTemplate,
                            boolean openSequenceSetWorkerId,
-                           String appKey) {
+                           String appKey,
+                           long maxWorkerId,
+                           long renewalTime,
+                           long renewalIntervalTime) {
         this.redisTemplate = redisTemplate;
         this.openSequenceSetWorkerId = openSequenceSetWorkerId;
         this.appKey = appKey;
+        this.maxWorkerId = maxWorkerId;
+        this.renewalTime = renewalTime;
+        this.renewalIntervalTime = renewalIntervalTime;
         this.service = Executors.newSingleThreadScheduledExecutor();
         // 钩子函数优雅关闭线程池
         this.shutdownHook = new Thread(() -> destroy());
@@ -73,7 +88,7 @@ public class WorkerIdManager {
 
         int times = 0;
         while (workerId == null && times ++ < 10) {
-            long random = ThreadLocalRandom.current().nextLong(0, 1024);
+            long random = ThreadLocalRandom.current().nextLong(0, maxWorkerId);
             workerId = register(random);
         }
     }
@@ -88,8 +103,8 @@ public class WorkerIdManager {
         long preWorkId = 0;
         while (workerId == null) {
             workerId = register(preWorkId);
-            // workerId 分配范围 [0,1024)
-            if (++ preWorkId >= 1024) {
+            // 如果机器号分配10位，workerId 分配范围 [0,1024)
+            if (++ preWorkId >= maxWorkerId) {
                 log.error("无可用 workerId！！！");
                 return;
             }
@@ -104,7 +119,7 @@ public class WorkerIdManager {
 
         String key = buildSnowFlakeWorkerIdKey(appKey, workerId);
         try {
-            if (redisTemplate.opsForValue().setIfAbsent(key, "1", THREE_MIN, TimeUnit.SECONDS)) {
+            if (redisTemplate.opsForValue().setIfAbsent(key, "1", renewalTime, TimeUnit.SECONDS)) {
                 log.info("WorkerId={} register success", workerId);
                 return workerId;
             }
@@ -123,12 +138,12 @@ public class WorkerIdManager {
             if (workerId != null) {
                 String key = buildSnowFlakeWorkerIdKey(appKey, workerId);
                 // 续期时再次set防止被Redis内存淘汰机制清理
-                if (!redisTemplate.opsForValue().setIfAbsent(key, "1", THREE_MIN, TimeUnit.SECONDS)) {
-                    redisTemplate.expire(key, THREE_MIN, TimeUnit.SECONDS);
+                if (!redisTemplate.opsForValue().setIfAbsent(key, "1", renewalTime, TimeUnit.SECONDS)) {
+                    redisTemplate.expire(key, renewalTime, TimeUnit.SECONDS);
                 }
                 log.info("workerId={} 续期成功", workerId);
             }
-        }, 3L, ONE_MIN, TimeUnit.SECONDS);
+        }, 3L, renewalIntervalTime, TimeUnit.SECONDS);
     }
 
     private String buildSnowFlakeWorkerIdKey(String appKey, Long workerId) {
@@ -155,7 +170,7 @@ public class WorkerIdManager {
         service.shutdown();
         log.info("续期线程池关闭");
         // 这里不删除上报机器号防止重启时时间回退造成唯一id发放重复
-        // 但是需要保证重启时间小于 THREE_MIN - ONE_MIN = 2min
+        // 但是需要保证重启时间小于 renewalTime - renewalIntervalTime
         // 如果后期项目重启时间过长可以适当调大有效期
     }
 

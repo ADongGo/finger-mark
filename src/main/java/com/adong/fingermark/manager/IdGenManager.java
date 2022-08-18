@@ -71,9 +71,18 @@ public class IdGenManager implements InitializingBean {
     private IdGen register(String appKey) {
 
         Properties properties = PropertyFactory.getProperties();
-        long workerIdShift = Long.parseLong(properties.getProperty(ConfigConstant.WORKERID_SHIFT, "10"));
-        boolean isOpen = Boolean.parseBoolean(properties.getProperty(ConfigConstant.OPEN_SEQUENCE_SET_WORKERID, "true"));
-        WorkerIdManager workerIdManager = new WorkerIdManager(redisTemplate, isOpen, appKey);
+        long workerIdShift = Long.parseLong(properties
+                .getProperty(ConfigConstant.WORKERID_SHIFT, "10"));
+        boolean isOpen = Boolean.parseBoolean(properties
+                .getProperty(ConfigConstant.OPEN_SEQUENCE_SET_WORKERID, "true"));
+        long maxWorkerId = (long) Math.pow(2, workerIdShift);
+        long renewalTime = Long.parseLong(properties
+                .getProperty(ConfigConstant.WORKERID_RENEWAL_TIME, "180"));
+        long renewalIntervalTime = Long.parseLong(properties
+                .getProperty(ConfigConstant.WORKERID_RENEWAL_INTERVAL_TIME, "60"));
+        WorkerIdManager workerIdManager = new WorkerIdManager(
+                redisTemplate, isOpen, appKey, maxWorkerId, renewalTime, renewalIntervalTime);
+
         Long workerId = null;
         try {
             workerId = workerIdManager.registerAndGetWorkerId();
