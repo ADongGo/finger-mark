@@ -54,7 +54,7 @@ public class IdGenManager implements InitializingBean {
 
     public void registerAppKey(String appKey) {
 
-        registers.putIfAbsent(appKey, register(appKey));
+        registers.computeIfAbsent(appKey, k -> register(k));
     }
 
     public void removeAppKey(String appKey) {
