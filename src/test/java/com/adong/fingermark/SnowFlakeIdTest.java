@@ -33,7 +33,7 @@ public class SnowFlakeIdTest {
             threadSize,
             0L,
             TimeUnit.SECONDS,
-            new LinkedBlockingQueue<>(1000),
+            new SynchronousQueue<>(),
             new ThreadPoolExecutor.CallerRunsPolicy());
 
     @Test
@@ -69,7 +69,7 @@ public class SnowFlakeIdTest {
         // 100 个线程，每个线程执行 10000 次
         for (int m = 0; m < threadSize; m++) {
             task.execute(() -> {
-                for (int i = 0; i < 10000; i++) {
+                for (int i = 0; i < 20000; i++) {
                     try {
                         list.add(idGenManager.getId());
                     } catch (Exception e) {

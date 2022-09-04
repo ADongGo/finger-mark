@@ -74,7 +74,7 @@ public class IdGenManager implements InitializingBean {
         long workerIdShift = Long.parseLong(properties
                 .getProperty(ConfigConstant.WORKERID_SHIFT, "10"));
         boolean isOpen = Boolean.parseBoolean(properties
-                .getProperty(ConfigConstant.OPEN_SEQUENCE_SET_WORKERID, "true"));
+                .getProperty(ConfigConstant.OPEN_SEQUENCE_SET_WORKERID, "false"));
         long maxWorkerId = (long) Math.pow(2, workerIdShift);
         long renewalTime = Long.parseLong(properties
                 .getProperty(ConfigConstant.WORKERID_RENEWAL_TIME, "180"));
