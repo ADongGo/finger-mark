@@ -27,7 +27,7 @@ public class SnowFlakeIdTest {
     @Autowired
     private IdGenManager idGenManager;
 
-    private int threadSize = 100;
+    private int threadSize = 10;
 
     private final ExecutorService task =  new ThreadPoolExecutor(threadSize,
             threadSize,
@@ -45,7 +45,7 @@ public class SnowFlakeIdTest {
         // 100 个线程，每个线程执行 10000 次
         for (int m = 0; m < threadSize; m++) {
             task.execute(() -> {
-                for (int i = 0; i < 20000; i++) {
+                for (int i = 0; i < 100000; i++) {
                     try {
                         list.add(UUID.randomUUID().toString());
                     } catch (Exception e) {
@@ -56,7 +56,7 @@ public class SnowFlakeIdTest {
             });
         }
         count.await();
-        log.info("set size={}, 耗时={}", new HashSet<>(list).size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        log.info("set size={}, 耗时={}ms", new HashSet<>(list).size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
         task.shutdown();
     }
 
@@ -69,7 +69,7 @@ public class SnowFlakeIdTest {
         // 100 个线程，每个线程执行 10000 次
         for (int m = 0; m < threadSize; m++) {
             task.execute(() -> {
-                for (int i = 0; i < 20000; i++) {
+                for (int i = 0; i < 100000; i++) {
                     try {
                         list.add(idGenManager.getId());
                     } catch (Exception e) {
@@ -80,8 +80,39 @@ public class SnowFlakeIdTest {
             });
         }
         count.await();
-        log.info("set size={}, 耗时={}", new HashSet<>(list).size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
+        log.info("set size={}, 耗时={}ms", new HashSet<>(list).size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
         task.shutdown();
+    }
+
+    @Test
+    public void testSerialUUID() {
+
+        List<String> list = new ArrayList<>();
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        for (int i = 0; i < 1000000; i++) {
+            try {
+                list.add(UUID.randomUUID().toString());
+            } catch (Exception e) {
+                log.error("get id error", e);
+            }
+        }
+        log.info("set size={}, 耗时={}ms", new HashSet<>(list).size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    }
+
+
+    @Test
+    public void testSerialSnowFlakeId() {
+
+        List<Long> list = new ArrayList<>();
+        Stopwatch stopwatch = Stopwatch.createStarted();
+        for (int i = 0; i < 1000000; i++) {
+            try {
+                list.add(idGenManager.getId());
+            } catch (Exception e) {
+                log.error("get id error", e);
+            }
+        }
+        log.info("set size={}, 耗时={}ms", new HashSet<>(list).size(), stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
 
 }
